@@ -71,7 +71,7 @@ int main(void)
           //BOGUS - should probably display some error description
           break;
         }
-        execute(cmd);
+        Execute(&cmd);
       }
     }
     
@@ -82,10 +82,35 @@ int main(void)
   return 0;
 }
 
-void
-Execute (Command cmd)
+int
+Execute (Command *cmd)
 {
+  Pgm *p = cmd->pgm;
+  char **pl = p->pgmlist;
 
+  /* for a child process */
+  pid_t pid = fork();
+  if (pid < 0) { /* fork failed */
+    fprintf(stderr, "Fork Failed");
+    return 1;
+  }
+  else if (pid == 0) { /* child process */
+    char *argv[1];
+    argv[0] = "-l";
+    // int i = 0;
+    // while(*pl) {
+    //   argv[i] = *pl;
+    //   **pl++;
+    //   i++;
+    // }
+    printf("%s\n", argv[0]);
+    execvp("ls", argv[0]);
+  }
+  else { /* parent process */
+    //Väntar på något
+    wait(NULL);
+    printf("Child complete\n");
+  }
 }
 
 /*
