@@ -67,6 +67,11 @@ int main(void)
         /* execute it */
         n = parse(line, &cmd);
         PrintCommand(n, &cmd);
+        if(n != 1) {
+          //BOGUS - should probably display some error description
+          break;
+        }
+        execute(cmd);
       }
     }
     
@@ -75,6 +80,12 @@ int main(void)
     }
   }
   return 0;
+}
+
+void
+Execute (Command cmd)
+{
+
 }
 
 /*
