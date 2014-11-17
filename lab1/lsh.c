@@ -87,7 +87,9 @@ Execute (Command *cmd)
 {
   Pgm *p = cmd->pgm;
   char **pl = p->pgmlist;
-
+  if (strcmp(pl[0],"exit") != 0) {
+    exit(EXIT_SUCCESS);
+  }
   /* for a child process */
   pid_t pid = fork();
   if (pid < 0) { /* fork failed */
@@ -95,16 +97,7 @@ Execute (Command *cmd)
     return 1;
   }
   else if (pid == 0) { /* child process */
-    char *argv[1];
-    argv[0] = "-l";
-    // int i = 0;
-    // while(*pl) {
-    //   argv[i] = *pl;
-    //   **pl++;
-    //   i++;
-    // }
-    printf("%s\n", argv[0]);
-    execvp("ls", argv[0]);
+    execvp(pl[0], pl);
   }
   else { /* parent process */
     //Väntar på något
