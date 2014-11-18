@@ -68,10 +68,11 @@ int main(void)
         n = parse(line, &cmd);
         PrintCommand(n, &cmd);
         if(n != 1) {
-          //BOGUS - should probably display some error description
-          break;
+          fprintf(stderr, "Parse failed \n");
         }
-        Execute(&cmd);
+        else {
+          Execute(&cmd);
+        }  
       }
     }
     
@@ -87,13 +88,13 @@ Execute (Command *cmd)
 {
   Pgm *p = cmd->pgm;
   char **pl = p->pgmlist;
-  if (strcmp(pl[0],"exit") != 0) {
+  if (strcmp(pl[0],"exit") == 0) {
     exit(EXIT_SUCCESS);
   }
   /* for a child process */
   pid_t pid = fork();
   if (pid < 0) { /* fork failed */
-    fprintf(stderr, "Fork Failed");
+    fprintf(stderr, "Fork Failed\n");
     return 1;
   }
   else if (pid == 0) { /* child process */
