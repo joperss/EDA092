@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <signal.h>
 #include "parse.h"
 
 /*
@@ -34,6 +35,13 @@ void stripwhite(char *);
 /* When non-zero, this global means the user is done using this program. */
 int done = 0;
 
+
+
+/* Reap defunct child processes when SIGCHLD is raised. */
+void handle_sigchld(int sig) {
+  while (waitpid((pid_t)(-1), 0, WNOHANG) > 0) {}
+}
+
 /*
  * Name: main
  *
@@ -42,6 +50,27 @@ int done = 0;
  */
 int main(void)
 {
+//  signal(SIGINT, SIG_IGN); // BOGUS: Så här kan man göra, men det verkar inte rätt
+//  signal(SIGCHLD, SIG_IGN);
+
+  /* Ignore SIGINT for the main process */
+  struct sigaction sigint;
+  sigint.sa_handler = SIG_IGN;
+  sigemptyset(&sigint.sa_mask);
+  sigint.sa_flags = 0;
+  if (sigaction(SIGINT, &sigint, 0) == -1) {
+    perror(0);
+    exit(1);
+  }
+  /* Register a sighandler for handling background processes */
+  struct sigaction sigchld;
+  sigchld.sa_handler = &handle_sigchld;
+  sigemptyset(&sigchld.sa_mask);
+  sigchld.sa_flags = SA_RESTART | SA_NOCLDSTOP;
+  if (sigaction(SIGCHLD, &sigchld, 0) == -1) {
+    perror(0);
+    exit(1);
+  }
   Command cmd;
   int n;
 
@@ -90,23 +119,43 @@ Execute (Command *cmd)
   if (strcmp(pl[0],"exit") == 0) {
     exit(EXIT_SUCCESS);
   }
-  /* for a child process */
+  /* fork a child process */
   pid_t pid = fork();
   if (pid < 0) { /* fork failed */
     fprintf(stderr, "Fork Failed\n");
     return 1;
   }
   else if (pid == 0) { /* child process */
+    if (!cmd->bakground) {
+      // Restore normal SIGINT behaviour if the child process is executed in the foreground
+      struct sigaction sigint;
+      sigint.sa_handler = SIG_DFL;
+      sigemptyset(&sigint.sa_mask);
+      sigint.sa_flags = 0;
+      if (sigaction(SIGINT, &sigint, 0) == -1) {
+        perror(0);
+        exit(1);
+      }
+    }
     execvp(pl[0], pl);
     exit(EXIT_FAILURE);
   }
   else { /* parent process */
     if (cmd->bakground) ;
-    else {
-      // Ska inte vara NULL
+    else { 
       int status;
       waitpid(pid, &status, 0);
-      if (status) {
+      
+      // Should probably check what the status is
+      if (WIFSIGNALED(status)) {
+        if (WTERMSIG(status) == SIGINT) {
+          printf("\nKeyboard interrupt\n");
+        }
+        else {
+          printf("\n");
+        }
+      }
+      else if (status) {
         fprintf(stderr, "Invalid command\n");
       }
     }
