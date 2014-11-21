@@ -46,7 +46,6 @@ int main(void)
   int n;
 
   while (!done) {
-
     char *line;
     line = readline("> ");
 
@@ -99,11 +98,18 @@ Execute (Command *cmd)
   }
   else if (pid == 0) { /* child process */
     execvp(pl[0], pl);
+    exit(EXIT_FAILURE);
   }
   else { /* parent process */
-    //Väntar på något
-    wait(NULL);
-    printf("Child complete\n");
+    if (cmd->bakground) ;
+    else {
+      // Ska inte vara NULL
+      int status;
+      waitpid(pid, &status, 0);
+      if (status) {
+        fprintf(stderr, "Invalid command\n");
+      }
+    }
   }
 }
 
