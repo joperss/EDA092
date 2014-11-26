@@ -16,14 +16,18 @@
  * All the best 
  */
 
-
+//TODO något med foreground tror jag
 #include <stdio.h>
 #include <stdlib.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <sys/types.h>
 #include <signal.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include "parse.h"
-
+#define READ (0)
+#define WRITE (1)
 /*
  * Function declarations
  */
@@ -99,7 +103,7 @@ int main(void)
           fprintf(stderr, "Parse failed \n");
         }
         else {
-          Execute(&cmd);
+          Execute(1, &cmd, (&cmd)->pgm);
         }  
       }
     }
@@ -112,12 +116,34 @@ int main(void)
 }
 
 int
-Execute (Command *cmd)
+Execute (int start, Command *cmd, Pgm *p)
 {
-  Pgm *p = cmd->pgm;
+//  Pgm *p = cmd->pgm;
   char **pl = p->pgmlist;
-  if (strcmp(pl[0],"exit") == 0) {
+  if (strcmp(pl[0], "exit") == 0) {
     exit(EXIT_SUCCESS);
+  }
+  else if (strcmp(pl[0], "cd") == 0) {
+    char *path;
+    if (pl[2] != NULL) {
+      fprintf(stderr, "Too many arguments\n");
+      return 1;
+    }
+    else if (pl[1] == NULL) {
+      path = getenv("HOME");
+      if (chdir(path) == -1) {
+        fprintf(stderr, "chdir() failed\n");
+        return 1;
+      }
+    }
+    else {
+      path = pl[1];
+      if (chdir(path) == -1) {
+        fprintf(stderr, "chdir() failed\n");
+        return 1;
+      }
+    }
+    return 0;
   }
   /* fork a child process */
   pid_t pid = fork();
@@ -134,7 +160,7 @@ Execute (Command *cmd)
       sigint.sa_flags = 0;
       if (sigaction(SIGINT, &sigint, 0) == -1) {
         perror(0);
-        exit(1);
+        exit(EXIT_FAILURE);
       }
     }
     execvp(pl[0], pl);
