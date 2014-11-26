@@ -129,7 +129,7 @@ Execute (int start, Command *cmd, Pgm *p)
       fprintf(stderr, "Too many arguments\n");
       return 1;
     }
-    else if (pl[1] == NULL) {
+    else if (pl[1] == NULL || !strcmp(pl[1], "~")) {
       path = getenv("HOME");
       if (chdir(path) == -1) {
         fprintf(stderr, "chdir() failed\n");
