@@ -119,6 +119,12 @@ int
 Execute (int start, Command *cmd, Pgm *p)
 {
 //  Pgm *p = cmd->pgm;
+  int pifd[2];
+  /*create a pipe*/
+   if (pipe(pifd) == -1){
+    perror("pipe");
+    exit(EXIT_FAILURE);
+  }
   char **pl = p->pgmlist;
   if (strcmp(pl[0], "exit") == 0) {
     exit(EXIT_SUCCESS);
@@ -152,6 +158,18 @@ Execute (int start, Command *cmd, Pgm *p)
     return 1;
   }
   else if (pid == 0) { /* child process */
+    /* If it is the original call to execute, close the pipe*/
+    if (start){
+      close(pifd[WRITE]);
+      close(pifd[READ]);
+    } else /* the child writes to the parent*/
+    {
+      close(pifd[READ]);
+      if (dup2(pifd[WRITE], WRITE) < 0)
+      {
+        printf("File descriptor error in child \n");
+      }
+    }
     if (!cmd->bakground) {
       // Restore normal SIGINT behaviour if the child process is executed in the foreground
       struct sigaction sigint;
@@ -163,10 +181,25 @@ Execute (int start, Command *cmd, Pgm *p)
         exit(EXIT_FAILURE);
       }
     }
+    if(p->next != NULL){
+      Execute(0, cmd,p->next);
+    }
     execvp(pl[0], pl);
     exit(EXIT_FAILURE);
   }
   else { /* parent process */
+    /* If it is the original call to execute, close the pipe*/
+    if (start){
+      close(pifd[WRITE]);
+      close(pifd[READ]);
+    } else
+    { /* the parent reads from the child*/
+      close(pifd[WRITE]);
+      if (dup2(pifd[READ], READ) < 0)
+      {
+        printf("File descriptor error in parent \n");
+      }
+    }
     if (cmd->bakground) ;
     else { 
       int status;
