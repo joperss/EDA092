@@ -181,8 +181,29 @@ Execute (int start, Command *cmd, Pgm *p)
         exit(EXIT_FAILURE);
       }
     }
+    if((cmd ->rstdout) != NULL){
+      int rstdout;
+      /*0660 sets rights to execute and write for the user/group */
+      if(rstdout = open(cmd->rstdout, O_WRONLY|O_TRUNC|O_CREAT, 0660)){
+        /*Redirect stdOut  to the file*/
+        dup2(rstdout, WRITE); 
+        close(rstdout);
+      }else
+        fprintf(stderr,"Could not write to file: %s \n", cmd->rstdout);
+    }
     if(p->next != NULL){
       Execute(0, cmd,p->next);
+    }else{
+      /*Checks if there is a file to read from, if true, 
+      we redirect the stdIn*/
+      if((cmd->rstdin) != NULL){
+        int rstdin;
+        if(r_stdin = open(cmd -> rstdin, O_RDONLY)){
+           dup2(rstdin, READ);
+           close(rstdin);
+        }else
+           fprintf(stderr,"Failed to open file: %s \n", cmd->rstdin);
+      }
     }
     execvp(pl[0], pl);
     exit(EXIT_FAILURE);
