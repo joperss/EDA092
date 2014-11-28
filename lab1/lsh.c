@@ -198,7 +198,7 @@ Execute (int start, Command *cmd, Pgm *p)
       we redirect the stdIn*/
       if((cmd->rstdin) != NULL){
         int rstdin;
-        if(r_stdin = open(cmd -> rstdin, O_RDONLY)){
+        if(rstdin = open(cmd -> rstdin, O_RDONLY)){
            dup2(rstdin, READ);
            close(rstdin);
         }else
