@@ -32,6 +32,8 @@
  * Function declarations
  */
 
+void handle_sigchld(int);
+int Execute(int, Command *, Pgm *);
 void PrintCommand(int, Command *);
 void PrintPgm(Pgm *);
 void stripwhite(char *);
@@ -54,9 +56,6 @@ void handle_sigchld(int sig) {
  */
 int main(void)
 {
-//  signal(SIGINT, SIG_IGN); // BOGUS: Så här kan man göra, men det verkar inte rätt
-//  signal(SIGCHLD, SIG_IGN);
-
   /* Ignore SIGINT for the main process */
   struct sigaction sigint;
   sigint.sa_handler = SIG_IGN;
@@ -118,7 +117,6 @@ int main(void)
 int
 Execute (int start, Command *cmd, Pgm *p)
 {
-//  Pgm *p = cmd->pgm;
   int pifd[2];
   /*create a pipe*/
    if (pipe(pifd) == -1){
@@ -126,15 +124,18 @@ Execute (int start, Command *cmd, Pgm *p)
     exit(EXIT_FAILURE);
   }
   char **pl = p->pgmlist;
+  /* Checks if the command is exit */
   if (strcmp(pl[0], "exit") == 0) {
     exit(EXIT_SUCCESS);
   }
+  /* Checks if the command is cd */
   else if (strcmp(pl[0], "cd") == 0) {
     char *path;
     if (pl[2] != NULL) {
       fprintf(stderr, "Too many arguments\n");
       return 1;
     }
+    /* Move to $HOME if no arguments or ~ */
     else if (pl[1] == NULL || !strcmp(pl[1], "~")) {
       path = getenv("HOME");
       if (chdir(path) == -1) {
@@ -142,6 +143,7 @@ Execute (int start, Command *cmd, Pgm *p)
         return 1;
       }
     }
+    /* Else move to the path specified */
     else {
       path = pl[1];
       if (chdir(path) == -1) {
@@ -158,20 +160,20 @@ Execute (int start, Command *cmd, Pgm *p)
     return 1;
   }
   else if (pid == 0) { /* child process */
-    /* If it is the original call to execute, close the pipe*/
+    /* If it is the original call, close the pipe*/
     if (start){
       close(pifd[WRITE]);
       close(pifd[READ]);
-    } else /* the child writes to the parent*/
-    {
+    } 
+    else { 
+      /* The child writes to the parent */
       close(pifd[READ]);
-      if (dup2(pifd[WRITE], WRITE) < 0)
-      {
+      if (dup2(pifd[WRITE], WRITE) < 0) {
         printf("File descriptor error in child \n");
       }
     }
     if (!cmd->bakground) {
-      // Restore normal SIGINT behaviour if the child process is executed in the foreground
+      /* Restore normal SIGINT behaviour if the child process is executed in the foreground */
       struct sigaction sigint;
       sigint.sa_handler = SIG_DFL;
       sigemptyset(&sigint.sa_mask);
@@ -181,28 +183,32 @@ Execute (int start, Command *cmd, Pgm *p)
         exit(EXIT_FAILURE);
       }
     }
-    if((cmd ->rstdout) != NULL){
+    if((cmd->rstdout) != NULL) {
       int rstdout;
-      /*0660 sets rights to execute and write for the user/group */
-      if(rstdout = open(cmd->rstdout, O_WRONLY|O_TRUNC|O_CREAT, 0660)){
-        /*Redirect stdOut  to the file*/
+      /* Creates/truncates the file specified by cmd->rstdout with the appropriate permissions */
+      if(rstdout = open(cmd->rstdout, O_WRONLY|O_TRUNC|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)) {
+        /* Redirect stdout to the file*/
         dup2(rstdout, WRITE); 
         close(rstdout);
-      }else
+      }
+      else {
         fprintf(stderr,"Could not write to file: %s \n", cmd->rstdout);
+      }
     }
-    if(p->next != NULL){
-      Execute(0, cmd,p->next);
-    }else{
-      /*Checks if there is a file to read from, if true, 
-      we redirect the stdIn*/
-      if((cmd->rstdin) != NULL){
+    if(p->next != NULL) {
+      Execute(0, cmd, p->next);
+    }
+    else {
+      /* Redirect iput from stdin when appropriate */
+      if((cmd->rstdin) != NULL) {
         int rstdin;
-        if(rstdin = open(cmd -> rstdin, O_RDONLY)){
+        if(rstdin = open(cmd->rstdin, O_RDONLY)) {
            dup2(rstdin, READ);
            close(rstdin);
-        }else
-           fprintf(stderr,"Failed to open file: %s \n", cmd->rstdin);
+        }
+        else {
+          fprintf(stderr,"Failed to open file: %s \n", cmd->rstdin);
+        }
       }
     }
     execvp(pl[0], pl);
@@ -210,23 +216,23 @@ Execute (int start, Command *cmd, Pgm *p)
   }
   else { /* parent process */
     /* If it is the original call to execute, close the pipe*/
-    if (start){
+    if (start) {
       close(pifd[WRITE]);
       close(pifd[READ]);
-    } else
-    { /* the parent reads from the child*/
+    } 
+    else { /* The parent reads from the child */
       close(pifd[WRITE]);
-      if (dup2(pifd[READ], READ) < 0)
-      {
+      if (dup2(pifd[READ], READ) < 0) {
         printf("File descriptor error in parent \n");
       }
     }
+    /* Don't wait for background processes */
     if (cmd->bakground) ;
     else { 
       int status;
       waitpid(pid, &status, 0);
       
-      // Should probably check what the status is
+      /* Checks the exit status of the child process */
       if (WIFSIGNALED(status)) {
         if (WTERMSIG(status) == SIGINT) {
           printf("\nKeyboard interrupt\n");
