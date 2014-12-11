@@ -159,62 +159,7 @@ Execute (int start, Command *cmd, Pgm *p)
     fprintf(stderr, "Fork Failed\n");
     return 1;
   }
-  else if (pid == 0) { /* child process */
-    /* If it is the original call, close the pipe*/
-    if (start){
-      close(pifd[WRITE]);
-      close(pifd[READ]);
-    } 
-    else { 
-      /* The child writes to the parent */
-      close(pifd[READ]);
-      if (dup2(pifd[WRITE], WRITE) < 0) {
-        printf("File descriptor error in child \n");
-      }
-    }
-    if (!cmd->bakground) {
-      /* Restore normal SIGINT behaviour if the child process is executed in the foreground */
-      struct sigaction sigint;
-      sigint.sa_handler = SIG_DFL;
-      sigemptyset(&sigint.sa_mask);
-      sigint.sa_flags = 0;
-      if (sigaction(SIGINT, &sigint, 0) == -1) {
-        perror(0);
-        exit(EXIT_FAILURE);
-      }
-    }
-    if((cmd->rstdout) != NULL) {
-      int rstdout;
-      /* Creates/truncates the file specified by cmd->rstdout with the appropriate permissions */
-      if(rstdout = open(cmd->rstdout, O_WRONLY|O_TRUNC|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)) {
-        /* Redirect stdout to the file*/
-        dup2(rstdout, WRITE); 
-        close(rstdout);
-      }
-      else {
-        fprintf(stderr,"Could not write to file: %s \n", cmd->rstdout);
-      }
-    }
-    if(p->next != NULL) {
-      Execute(0, cmd, p->next);
-    }
-    else {
-      /* Redirect iput from stdin when appropriate */
-      if((cmd->rstdin) != NULL) {
-        int rstdin;
-        if(rstdin = open(cmd->rstdin, O_RDONLY)) {
-           dup2(rstdin, READ);
-           close(rstdin);
-        }
-        else {
-          fprintf(stderr,"Failed to open file: %s \n", cmd->rstdin);
-        }
-      }
-    }
-    execvp(pl[0], pl);
-    exit(EXIT_FAILURE);
-  }
-  else { /* parent process */
+  else if (pid > 0) { /* parent process */
     /* If it is the original call to execute, close the pipe*/
     if (start) {
       close(pifd[WRITE]);
@@ -245,6 +190,61 @@ Execute (int start, Command *cmd, Pgm *p)
         fprintf(stderr, "Invalid command\n");
       }
     }
+  }
+    else{ /* child process */
+    /* If it is the original call, close the pipe*/
+    if((cmd->rstdout) != NULL) {
+      int rstdout;
+      /* Creates/truncates the file specified by cmd->rstdout with the appropriate permissions */
+      if(rstdout = open(cmd->rstdout, O_WRONLY|O_TRUNC|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)) {
+        /* Redirect stdout to the file*/
+        dup2(rstdout, WRITE); 
+        close(rstdout);
+      }
+      else {
+        fprintf(stderr,"Could not write to file: %s \n", cmd->rstdout);
+      }
+    }
+    if (start){
+      close(pifd[WRITE]);
+      close(pifd[READ]);
+    } 
+    else { 
+      /* The child writes to the parent */
+      close(pifd[READ]);
+      if (dup2(pifd[WRITE], WRITE) < 0) {
+        printf("File descriptor error in child \n");
+      }
+    }
+    if (!cmd->bakground) {
+      /* Restore normal SIGINT behaviour if the child process is executed in the foreground */
+      struct sigaction sigint;
+      sigint.sa_handler = SIG_DFL;
+      sigemptyset(&sigint.sa_mask);
+      sigint.sa_flags = 0;
+      if (sigaction(SIGINT, &sigint, 0) == -1) {
+        perror(0);
+        exit(EXIT_FAILURE);
+      }
+    }
+    if(p->next != NULL) {
+      Execute(0, cmd, p->next);
+    }
+    else {
+      /* Redirect input from stdin when appropriate */
+      if((cmd->rstdin) != NULL) {
+        int rstdin;
+        if(rstdin = open(cmd->rstdin, O_RDONLY)) {
+           dup2(rstdin, READ);
+           close(rstdin);
+        }
+        else {
+          fprintf(stderr,"Failed to open file: %s \n", cmd->rstdin);
+        }
+      }
+    }
+    execvp(pl[0], pl);
+    exit(EXIT_FAILURE);
   }
 }
 
