@@ -1,0 +1,3 @@
+#!/bin/bash
+
+export PATH=/chalmers/sw/unsup64/phc/b/pkg/bochs-2.6.6/bin:/chalmers/users/joperss/MPCSN/EDA092/lab2/pintos/src/utils:/chalmers/users/joperss/.vcs4/select:/chalmers/sw/vcs/core/bin:/chalmers/sw/sup64/phc/b/binh:/chalmers/sw/sup/phc/b/binh:/bin:/usr/bin:/usr/sbin:/usr/kerberos/bin:/usr/X11R6/bin:/usr/local/bin:/chalmers/sw/sup64/phc/b/binl:/chalmers/sw/sup/phc/b/binl
