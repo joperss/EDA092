@@ -23,6 +23,13 @@ typedef struct {
 	int priority;
 } task_t;
 
+struct semaphore busSema;
+struct semaphore HighPriority;
+struct semaphore senders;
+//struct semaphore priosend;
+//struct semaphore receivers;
+//struct semaphore priorecv;
+
 void batchScheduler(unsigned int num_tasks_send, unsigned int num_task_receive,
         unsigned int num_priority_send, unsigned int num_priority_receive);
 
@@ -43,9 +50,11 @@ void oneTask(task_t task);/*Task requires to use the bus and executes methods be
 void init_bus(void){ 
  
     random_init((unsigned int)123456789); 
-    
-    msg("NOT IMPLEMENTED");
-    /* FIXME implement */
+    sema_init(&busSema, BUS_CAPACITY);
+    sema_init(&HighPriority, 1);
+    sema_init(&senders, BUS_CAPACITY);
+//    sema_init(&priosend, BUS_CAPACITY);
+//    sema_init(&priorecv, BUS_CAPACITY);
 
 }
 
@@ -63,8 +72,23 @@ void init_bus(void){
 void batchScheduler(unsigned int num_tasks_send, unsigned int num_task_receive,
         unsigned int num_priority_send, unsigned int num_priority_receive)
 {
-    msg("NOT IMPLEMENTED");
-    /* FIXME implement */
+    int i;
+    char *name1 = "pri_send";
+    for(i = 0; i < num_priority_send; i++) {
+        thread_create(name1, 0, senderPriorityTask, 0);
+    }
+    char *name2 = "pri_recv";
+    for(i = 0; i < num_priority_receive; i++) {
+        thread_create(name2, 0, receiverPriorityTask, 0);
+    }
+    char *name3 = "send";
+    for(i = 0; i < num_tasks_send; i++) {
+        thread_create(name3, 0, senderTask, 0);
+    }
+    char *name4 = "recv";
+    for(i = 0; i < num_task_receive; i++) {
+        thread_create(name4, 0, receiverTask, 0);
+    }
 }
 
 /* Normal task,  sending data to the accelerator */
@@ -102,20 +126,62 @@ void oneTask(task_t task) {
 /* task tries to get slot on the bus subsystem */
 void getSlot(task_t task) 
 {
-    msg("NOT IMPLEMENTED");
-    /* FIXME implement */
+    // if (task.priority == HIGH) {
+    //     sema_down(&HighPriority);
+    // }
+    // else {
+    //     timer_msleep(100);
+    //     while (HighPriority.value < 50) ;
+    // }
+    // if (task.direction == SENDER) {
+    //     sema_down(&senders);
+    // }
+    // else {
+    //     timer_msleep(100);
+    //     while (senders.value < BUS_CAPACITY) ;
+    // }
+
+    if (task.direction == SENDER) 
+        sema_down(&senders);
+    else {
+        timer_msleep(100);
+        while (senders.value < BUS_CAPACITY && !list_empty(&senders.waiters)) ;
+    }
+
+    // if (task.priority == HIGH) {
+    //     printf("Trying to aqcuire high priority sema\n");
+    //     if (task.direction == SENDER)
+    //         sema_down(&priosend);
+    //     else 
+    //         sema_down(&priorecv);
+    // }
+    // else {
+    //     timer_msleep(100);
+    //     while (HighPriority.value < BUS_CAPACITY && !list_empty(&(HighPriority.waiters))) ;
+    // }
+    sema_down(&busSema);
+    if (task.direction == SENDER){
+        sema_up(&senders);
+        printf("1\n");        
+    }
+    else
+        printf("2\n");
+    // if (task.priority == HIGH)
+    //     sema_up(&HighPriority);
+    // else if (task.direction == SENDER)
+    //     sema_up(&senders);
 }
 
 /* task processes data on the bus send/receive */
 void transferData(task_t task) 
 {
-    msg("NOT IMPLEMENTED");
-    /* FIXME implement */
+    //printf("Transferring data\n");
+    timer_msleep(random_ulong()%100);
+    //printf("Transfer done\n");
 }
 
 /* task releases the slot */
 void leaveSlot(task_t task) 
 {
-    msg("NOT IMPLEMENTED");
-    /* FIXME implement */
+    sema_up(&busSema);
 }

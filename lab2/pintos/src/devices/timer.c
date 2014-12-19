@@ -180,6 +180,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
   thread_foreach (check_thread, 0);
 }
 
+/* Checks if a blocked thread is is sleeping and if it 
+is ready to be woken up */
 static void
 check_thread (struct thread *t, void *aux)
 {
