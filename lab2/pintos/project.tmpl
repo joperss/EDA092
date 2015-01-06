@@ -5,13 +5,12 @@
 			|   DESIGN DOCUMENT  |
 			+--------------------+
 				   
----- GROUP XX ----
+---- GROUP B6 ----
 
 >> Fill in the group number, names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Fredrik Boldizar <frebol@student.chalmers.se>
+Johan Persson <joperss@student.chalmers.se>
 
 ---- PRELIMINARIES ----
 
@@ -22,6 +21,9 @@ FirstName LastName <email@domain.example>
 >> preparing your submission, other than the Pintos documentation, course
 >> text, lecture notes, and course staff.
 
+Man pages
+Stackoverflow.com
+
 			     ALARM CLOCK
 			     ===========
 
@@ -31,26 +33,101 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+in thread.h:
+   struct thread:
+      int64_t time_wait;        /* Number of ticks to wait */
+      int64_t start_time;       /* Starting time of sleep */
+
+in thread.c:
+   init_thread:
+      t->time_wait = 0;
+      t->start_time = 0;        /* Initialize variables */
+
+in timer.c:
+   static void check_thread (struct thread *t, void *aux); /* Declaration of function check_thread */
+
+/* Each thread being blocked is given two variables: a time_wait (specified in the call), as well as a start_time (current ticks) */
+   void
+   timer_sleep (int64_t ticks) 
+   {
+     if (ticks > 0){
+       ASSERT (intr_get_level () == INTR_ON);
+       thread_current ()->time_wait = ticks;
+       thread_current ()->start_time = timer_ticks ();
+       enum intr_level old_level = intr_disable ();
+       thread_block ();
+       intr_set_level (old_level);
+     }
+   }
+
+/* Added checking all threads through thread_foreach */
+   static void
+   timer_interrupt (struct intr_frame *args UNUSED)
+   {
+     ticks++;
+     thread_tick ();
+     thread_foreach (check_thread, 0);
+   }
+
+
+/* Checks if a blocked thread is sleeping or just blocked, then checks if the sleep timer has elapsed. If so, unblocks it. */
+   static void
+   check_thread (struct thread *t, void *aux)
+   {
+     if (t->time_wait > 0 && t->status == THREAD_BLOCKED){
+       if (timer_elapsed(t->start_time) >= t->time_wait) {
+         t->time_wait = 0;
+         thread_unblock(t);
+       }
+     }
+   }
+
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe what happens in a call to timer_sleep(),
 >> including the effects of the timer interrupt handler.
 
+A check is made for if the specified wait time is greater than 0.
+Then, we assert that interrupts are on.
+The variables time_wait and start_time are given their appropriate values.
+Interrupts are disabled for blocking, then reenabled.
+
+Every interrupt, we have added checking of each thread. We check for if a
+blocked thread is a sleeping thread, or simply blocked. 
+If it is a sleeping thread, we check for if the elapsed time is equal to 
+or greater than time_wait. If so, unblock the thread.
+
 >> A3: What steps are taken to minimize the amount of time spent in
 >> the timer interrupt handler?
+
+The checks are fairly minimal. We are also using nested checks.
 
 ---- SYNCHRONIZATION ----
 
 >> A4: How are race conditions avoided when multiple threads call
 >> timer_sleep() simultaneously?
 
+Every thread has its own variables. Thereby, no race conditions exist.
+
 >> A5: How are race conditions avoided when a timer interrupt occurs
 >> during a call to timer_sleep()?
+
+During blocking, timer interrupts must be disabled. If unfortunate interrupts occur,
+the start_time may be somewhat higher than originally intended (by a few ticks), but
+we consider this to be acceptable.
 
 ---- RATIONALE ----
 
 >> A6: Why did you choose this design?  In what ways is it superior to
 >> another design you considered?
+
+We considered a similar approach, but instead of having a time_wait and a start_time,
+we would simply use time_wait which we would decrement each time we checked. However,
+this way, atleast the way we were thinking of implementing it, would require both a 
+decrement operation and a check =0, which we thought would be more time-consuming than
+our current solution. There would also be a few more possible complications regarding 
+checking if a thread is sleeping or blocked through other sources.
 
 			    BATCH SCHEDULING
 			    ================

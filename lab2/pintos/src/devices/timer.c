@@ -92,7 +92,6 @@ timer_sleep (int64_t ticks)
 {
   if (ticks > 0){
     ASSERT (intr_get_level () == INTR_ON);
-    // maybe we should turn of interrupts here
     thread_current ()->time_wait = ticks;
     thread_current ()->start_time = timer_ticks ();
     enum intr_level old_level = intr_disable ();
@@ -180,7 +179,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
   thread_foreach (check_thread, 0);
 }
 
-/* Checks if a blocked thread is is sleeping and if it 
+/* Checks if a blocked thread is sleeping and if it 
 is ready to be woken up */
 static void
 check_thread (struct thread *t, void *aux)
