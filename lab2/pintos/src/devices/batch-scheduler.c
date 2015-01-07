@@ -26,6 +26,10 @@ typedef struct {
 struct semaphore busSema;
 struct semaphore HighPriority;
 struct semaphore senders;
+struct semaphore receivers;
+struct lock hplock;
+volatile int direction = 0;
+volatile int HP = 1;
 //struct semaphore priosend;
 //struct semaphore receivers;
 //struct semaphore priorecv;
@@ -51,8 +55,10 @@ void init_bus(void){
  
     random_init((unsigned int)123456789); 
     sema_init(&busSema, BUS_CAPACITY);
-    sema_init(&HighPriority, 1);
+    sema_init(&HighPriority, 20);
     sema_init(&senders, BUS_CAPACITY);
+    sema_init(&receivers, BUS_CAPACITY);
+    lock_init(&hplock);
 //    sema_init(&priosend, BUS_CAPACITY);
 //    sema_init(&priorecv, BUS_CAPACITY);
 
@@ -126,50 +132,36 @@ void oneTask(task_t task) {
 /* task tries to get slot on the bus subsystem */
 void getSlot(task_t task) 
 {
-    // if (task.priority == HIGH) {
-    //     sema_down(&HighPriority);
-    // }
-    // else {
-    //     timer_msleep(100);
-    //     while (HighPriority.value < 50) ;
-    // }
-    // if (task.direction == SENDER) {
-    //     sema_down(&senders);
-    // }
-    // else {
-    //     timer_msleep(100);
-    //     while (senders.value < BUS_CAPACITY) ;
-    // }
-
-    if (task.direction == SENDER) 
-        sema_down(&senders);
+    if (task.priority == HIGH) {
+        sema_down(&HighPriority);
+        if (HP == 0) {
+            HP = 1;
+        }
+        if (task.direction == SENDER) {
+            sema_down(&senders);
+            while(direction == 1) timer_msleep(10);
+        }
+        else {
+            sema_down(&receivers);
+            while(direction == 0) timer_msleep(10);
+        }
+        sema_up(&HighPriority);
+        if (list_empty(&HighPriority.waiters) && HighPriority.value == 20) {
+            HP = 0;
+        }
+    }
     else {
-        timer_msleep(100);
-        while (senders.value < BUS_CAPACITY && !list_empty(&senders.waiters)) ;
+        while (HP == 1) timer_msleep(10);
+        if (task.direction == SENDER) {
+            sema_down(&senders);
+            while(direction == 1);
+        }
+        else {
+            sema_down(&receivers);
+            while (direction == 0);
+        }
     }
-
-    // if (task.priority == HIGH) {
-    //     printf("Trying to aqcuire high priority sema\n");
-    //     if (task.direction == SENDER)
-    //         sema_down(&priosend);
-    //     else 
-    //         sema_down(&priorecv);
-    // }
-    // else {
-    //     timer_msleep(100);
-    //     while (HighPriority.value < BUS_CAPACITY && !list_empty(&(HighPriority.waiters))) ;
-    // }
     sema_down(&busSema);
-    if (task.direction == SENDER){
-        sema_up(&senders);
-        printf("1\n");        
-    }
-    else
-        printf("2\n");
-    // if (task.priority == HIGH)
-    //     sema_up(&HighPriority);
-    // else if (task.direction == SENDER)
-    //     sema_up(&senders);
 }
 
 /* task processes data on the bus send/receive */
@@ -184,4 +176,18 @@ void transferData(task_t task)
 void leaveSlot(task_t task) 
 {
     sema_up(&busSema);
+    if (task.direction == SENDER) {
+        sema_up(&senders);
+        if (list_empty(&senders.waiters) && senders.value == BUS_CAPACITY)
+        {
+            direction = 1;
+        }
+    }
+    else {
+        sema_up(&receivers);
+        if (list_empty(&receivers.waiters) && receivers.value == BUS_CAPACITY)
+        {
+            direction = 0;
+        }
+    }
 }
