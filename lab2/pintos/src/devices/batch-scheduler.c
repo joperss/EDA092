@@ -30,7 +30,6 @@ struct semaphore senders;           /* A semaphore used to indicate that there a
                                        for bus access */ 
 struct semaphore receivers;         /* A semaphore used to indicate that there are receiver tasks
                                        waiting for the bus */
-struct lock hplock;                 /* A lock used for protecting the HP variable */
 volatile int direction = 0;         /* Indicates the direction of the bus */
 volatile int HP = 1;                /* Indicates that there are high priority tasks waiting for bus access,
                                        used to prevent lower priority tasks from accessing the bus */

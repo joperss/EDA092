@@ -38,51 +38,6 @@ in thread.h:
       int64_t time_wait;        /* Number of ticks to wait */
       int64_t start_time;       /* Starting time of sleep */
 
-in thread.c:
-   init_thread:
-      t->time_wait = 0;
-      t->start_time = 0;        /* Initialize variables */
-
-in timer.c:
-   static void check_thread (struct thread *t, void *aux); /* Declaration of function check_thread */
-
-/* Each thread being blocked is given two variables: a time_wait (specified in the call), as well as a start_time (current ticks) */
-   void
-   timer_sleep (int64_t ticks) 
-   {
-     if (ticks > 0){
-       ASSERT (intr_get_level () == INTR_ON);
-       thread_current ()->time_wait = ticks;
-       thread_current ()->start_time = timer_ticks ();
-       enum intr_level old_level = intr_disable ();
-       thread_block ();
-       intr_set_level (old_level);
-     }
-   }
-
-/* Added checking all threads through thread_foreach */
-   static void
-   timer_interrupt (struct intr_frame *args UNUSED)
-   {
-     ticks++;
-     thread_tick ();
-     thread_foreach (check_thread, 0);
-   }
-
-
-/* Checks if a blocked thread is sleeping or just blocked, then checks if the sleep timer has elapsed. If so, unblocks it. */
-   static void
-   check_thread (struct thread *t, void *aux)
-   {
-     if (t->time_wait > 0 && t->status == THREAD_BLOCKED){
-       if (timer_elapsed(t->start_time) >= t->time_wait) {
-         t->time_wait = 0;
-         thread_unblock(t);
-       }
-     }
-   }
-
-
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe what happens in a call to timer_sleep(),
@@ -136,15 +91,15 @@ checking if a thread is sleeping or blocked through other sources.
 >> A1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, semaphore, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+
 in batch-scheduler.c:
     struct semaphore busSema;           /* A semaphore for managing the number of tasks on the bus */
     struct semaphore HighPriority;      /* A semaphore used to indicate that there are high priority tasks
-                                           waiting bus access */
+                                           waiting for bus access */
     struct semaphore senders;           /* A semaphore used to indicate that there are sender tasks waiting
                                            for bus access */ 
     struct semaphore receivers;         /* A semaphore used to indicate that there are receiver tasks
                                            waiting for the bus */
-    struct lock hplock;                 /* A lock used for protecting the HP variable */
     volatile int direction = 0;         /* Indicates the direction of the bus */
     volatile int HP = 1;                /* Indicates that there are high priority tasks waiting for bus access,
                                            used to prevent lower priority tasks from accessing the bus */
