@@ -133,27 +133,27 @@ void oneTask(task_t task) {
 void getSlot(task_t task) 
 {
     if (task.priority == HIGH) {
-        sema_down(&HighPriority);
-        if (HP == 0) {
-            HP = 1;
+        sema_down(&HighPriority);   /* Semaphore used to track if there are any high priority threads remaining */
+        if (HP == 0) {  /* For late high priority arrivals */
+            HP = 1;     /* Variable used to track if high priority threads are waiting */
         }
-        if (task.direction == SENDER) {
+        if (task.direction == SENDER) {     /* Semaphores used to queue 3 senders + 3 receivers at a time */
             sema_down(&senders);
-            while(direction == 1) timer_msleep(10);
+            while(direction == 1) timer_msleep(10); /* Timer_msleep is used to minimize busy-waiting, roughly halved testing time */
         }
         else {
             sema_down(&receivers);
             while(direction == 0) timer_msleep(10);
         }
         sema_up(&HighPriority);
-        if (list_empty(&HighPriority.waiters) && HighPriority.value == 20) {
-            HP = 0;
+        if (list_empty(&HighPriority.waiters) && HighPriority.value == 20) {    /* When there are no more high priority threads waiting */
+            HP = 0;                                                             /* or running, set HP to allow low priority tasks */
         }
     }
     else {
-        while (HP == 1) timer_msleep(10);
-        if (task.direction == SENDER) {
-            sema_down(&senders);
+        while (HP == 1 || !list_empty(&busSema.waiters)) timer_msleep(10);   /* Wait for permission to send low priority tasks */
+        if (task.direction == SENDER) { /* Same functionality as above. Allows for lp tasks to run parallel with hp tasks if there are */
+            sema_down(&senders);        /* no more hp tasks in queue */ 
             while(direction == 1);
         }
         else {
