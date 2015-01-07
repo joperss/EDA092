@@ -23,6 +23,18 @@ typedef struct {
 	int priority;
 } task_t;
 
+struct semaphore busSema;           /* A semaphore for managing the number of tasks on the bus */
+struct semaphore HighPriority;      /* A semaphore used to indicate that there are high priority tasks
+                                       waiting bus access */
+struct semaphore senders;           /* A semaphore used to indicate that there are sender tasks waiting
+                                       for bus access */ 
+struct semaphore receivers;         /* A semaphore used to indicate that there are receiver tasks
+                                       waiting for the bus */
+struct lock hplock;                 /* A lock used for protecting the HP variable */
+volatile int direction = 0;         /* Indicates the direction of the bus */
+volatile int HP = 1;                /* Indicates that there are high priority tasks waiting for bus access,
+                                       used to prevent lower priority tasks from accessing the bus */
+
 struct semaphore busSema;
 struct semaphore HighPriority;
 struct semaphore senders;
@@ -30,9 +42,6 @@ struct semaphore receivers;
 struct lock hplock;
 volatile int direction = 0;
 volatile int HP = 1;
-//struct semaphore priosend;
-//struct semaphore receivers;
-//struct semaphore priorecv;
 
 void batchScheduler(unsigned int num_tasks_send, unsigned int num_task_receive,
         unsigned int num_priority_send, unsigned int num_priority_receive);
@@ -59,8 +68,6 @@ void init_bus(void){
     sema_init(&senders, BUS_CAPACITY);
     sema_init(&receivers, BUS_CAPACITY);
     lock_init(&hplock);
-//    sema_init(&priosend, BUS_CAPACITY);
-//    sema_init(&priorecv, BUS_CAPACITY);
 
 }
 
@@ -168,9 +175,7 @@ void getSlot(task_t task)
 /* task processes data on the bus send/receive */
 void transferData(task_t task) 
 {
-    //printf("Transferring data\n");
     timer_msleep(random_ulong()%100);
-    //printf("Transfer done\n");
 }
 
 /* task releases the slot */

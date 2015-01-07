@@ -96,7 +96,7 @@ Interrupts are disabled for blocking, then reenabled.
 Every interrupt, we have added checking of each thread. We check for if a
 blocked thread is a sleeping thread, or simply blocked. 
 If it is a sleeping thread, we check for if the elapsed time is equal to 
-or greater than time_wait. If so, unblock the thread.
+or greater than time_wait. If so, unblock the thread and reset time_wait.
 
 >> A3: What steps are taken to minimize the amount of time spent in
 >> the timer interrupt handler?
@@ -136,27 +136,56 @@ checking if a thread is sleeping or blocked through other sources.
 >> A1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, semaphore, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+in batch-scheduler.c:
+    struct semaphore busSema;           /* A semaphore for managing the number of tasks on the bus */
+    struct semaphore HighPriority;      /* A semaphore used to indicate that there are high priority tasks
+                                           waiting bus access */
+    struct semaphore senders;           /* A semaphore used to indicate that there are sender tasks waiting
+                                           for bus access */ 
+    struct semaphore receivers;         /* A semaphore used to indicate that there are receiver tasks
+                                           waiting for the bus */
+    struct lock hplock;                 /* A lock used for protecting the HP variable */
+    volatile int direction = 0;         /* Indicates the direction of the bus */
+    volatile int HP = 1;                /* Indicates that there are high priority tasks waiting for bus access,
+                                           used to prevent lower priority tasks from accessing the bus */
+
 
 ---- SYNCHRONIZATION ----
 
 >> C1: How does your solution guarantee that no more that 3 tasks
 >> are using the bus in the same direction?
 
+We initialize busSema to 3, thus only allowing 3 task on the bus at once.
+
 >> C2: What prevents tasks from opposite directions from using the
 >> bus simultaneously?
+
+We make tasks wait for the direction of the bus to change to the direction of the task before requesting
+the bus semaphore. The direction is changed when there are no more tasks in the current direction.
 
 >> C3: How does your solution grant priority to high priority tasks over
 >> the waiting tasks in the same direction?
 
+We make normal priority tasks wait until there are no high priority tasks waiting for the bus, i.e. by
+waiting for the HP variable to become 0, before requesting access to the bus. Additionally, since the
+semaphore we use for bus access is shared between low and high priority tasks, we make sure that no more
+than 1 low priority task stand in queue for the busSema.
+
 >> C4: How do you guarantee that despite having priority, high priority
 >> tasks do not start using the bus while there are still still using
 >> it in the oposite direction?
+
+Same as C2, by checking the direction of the bus before requesting access (but after announcing that it's
+waiting for access, thereby preventing additional low priority tasks from the other direction to request
+access to the bus).
 
 ---- RATIONALE ----
 
 >> C6: Why did you choose this design? Did you consider other design 
 >> alternatives? In what ways is it superior to another design you considered?
 
+We considered having multiple semaphores to handle bus access, but having a single semaphore for the bus
+seemed more natural to us when adding functionality in steps as well as resulting in simpler logic.
 
 			   SURVEY QUESTIONS (optional)
 			   ===========================
