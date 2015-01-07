@@ -145,6 +145,7 @@ void getSlot(task_t task)
             sema_down(&receivers);
             while(direction == 0) timer_msleep(10);
         }
+        sema_down(&busSema); /* Used for prohibiting queue building of lp tasks only*/
         sema_up(&HighPriority);
         if (list_empty(&HighPriority.waiters) && HighPriority.value == 20) {    /* When there are no more high priority threads waiting */
             HP = 0;                                                             /* or running, set HP to allow low priority tasks */
@@ -160,8 +161,8 @@ void getSlot(task_t task)
             sema_down(&receivers);
             while (direction == 0) timer_msleep(10);
         }
+        sema_down(&busSema); /* Used for prohibiting queue building of lp tasks only*/
     }
-    sema_down(&busSema); /* Used for prohibiting queue building of lp tasks only*/
 }
 
 /* task processes data on the bus send/receive */
