@@ -154,14 +154,14 @@ void getSlot(task_t task)
         while (HP == 1 || !list_empty(&busSema.waiters)) timer_msleep(10);   /* Wait for permission to send low priority tasks */
         if (task.direction == SENDER) { /* Same functionality as above. Allows for lp tasks to run parallel with hp tasks if there are */
             sema_down(&senders);        /* no more hp tasks in queue */ 
-            while(direction == 1);
+            while(direction == 1) timer_msleep(10);
         }
         else {
             sema_down(&receivers);
-            while (direction == 0);
+            while (direction == 0) timer_msleep(10);
         }
     }
-    sema_down(&busSema);
+    sema_down(&busSema); /* Used for prohibiting queue building of lp tasks only*/
 }
 
 /* task processes data on the bus send/receive */
@@ -178,7 +178,7 @@ void leaveSlot(task_t task)
     sema_up(&busSema);
     if (task.direction == SENDER) {
         sema_up(&senders);
-        if (list_empty(&senders.waiters) && senders.value == BUS_CAPACITY)
+        if (list_empty(&senders.waiters) && senders.value == BUS_CAPACITY) /* When there are no more senders waiting, change direction */
         {
             direction = 1;
         }
